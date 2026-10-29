@@ -46,6 +46,17 @@ bundle patch 会插入 `ui-compact-sidebar` 行，无需手改 `cordis.patch.yml
 
 范围在每个边界上都被约束——schema、步进按钮的禁用态、以及 `clampRowHeight`——手改设置文件也不会得到不可用的侧栏。手输越界数字会收敛到最近的边界；空值或无法解析的内容视为「不改变」，而不是跳成最小值。
 
+## 版本
+
+每个已发布版本都有对应 tag，并列在 [releases 页](https://github.com/lxgy1024/dshX-ui-sidebar/releases) 上，一个版本一条。推送 `v<版本号>` tag 会触发 `release` workflow：校验 tag 与 `package.json` 的版本一致，该版本尚未发布时发布到 npm，然后创建 release 条目。
+
+当前版本：
+
+| 版本 | 说明 |
+| --- | --- |
+| [0.1.1](https://github.com/lxgy1024/dshX-ui-sidebar/releases/tag/v0.1.1) | 功能栏与工作区独立设高，支持直接输入数值 |
+| [0.1.0](https://github.com/lxgy1024/dshX-ui-sidebar/releases/tag/v0.1.0) | 侧栏所有行共用一个高度 |
+
 ## 已知限制
 
 - 所有规则都以 `[data-dsh-frame]:not([data-sidebar-collapsed])` 为前提：折叠的图标轨道保持自己的 36px 方格，这对纯图标轨道才是合适尺寸。

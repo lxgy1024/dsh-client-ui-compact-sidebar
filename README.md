@@ -46,6 +46,17 @@ Both values live in the Host settings document under the `ui-compact-sidebar` na
 
 The range is enforced at every boundary — the schema, the steppers' disabled states, and `clampRowHeight` — so a hand-edited settings file cannot produce an unusable sidebar. Typed out-of-range numbers clamp to the nearest bound; an empty or unreadable entry is treated as "no change" rather than as a jump to the minimum.
 
+## Releases
+
+Every published version is tagged and listed on the [releases page](https://github.com/lxgy1024/dshX-ui-sidebar/releases), one entry per version. Pushing a `v<version>` tag runs the `release` workflow, which checks the tag names the `package.json` version, publishes to npm when that version is not there yet, and creates the release entry.
+
+Current versions:
+
+| Version | Notes |
+| --- | --- |
+| [0.1.1](https://github.com/lxgy1024/dshX-ui-sidebar/releases/tag/v0.1.1) | Independent functional-bar and workspace heights, numeric entry |
+| [0.1.0](https://github.com/lxgy1024/dshX-ui-sidebar/releases/tag/v0.1.0) | One shared height for every sidebar row |
+
 ## Known limitations
 
 - Every rule is gated on `[data-dsh-frame]:not([data-sidebar-collapsed])`: the collapsed rail keeps its own 36px icon tiles, which is the correct size for an icon-only rail.
