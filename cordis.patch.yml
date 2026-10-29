@@ -1,0 +1,8 @@
+# Bundle patch: inserts the plugin row into a dsh web profile roster.
+# Installed as a profile bundle (the dsh.bundle.patch manifest field):
+#   dsh plugin --profile web add @dshx/dsh-client-ui-compact-sidebar
+# The row id doubles as this plugin’s settings namespace, so keep the two in
+# sync with SETTINGS_NAMESPACE in src/client/index.ts.
+- insert:
+    - id: ui-compact-sidebar
+      name: '@dshx/dsh-client-ui-compact-sidebar'
