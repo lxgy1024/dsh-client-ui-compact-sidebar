@@ -1,7 +1,7 @@
 {
   "name": "@dshx/dsh-client-ui-compact-sidebar",
   "description": "DSH Web GUI plugin: one Button size setting in General settings that resizes every sidebar entry and workspace row",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
