@@ -68,6 +68,7 @@
     "LICENSE"
   ],
   "license": "MIT",
+  "packageManager": "pnpm@10.0.0",
   "publishConfig": {
     "access": "public"
   }
