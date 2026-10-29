@@ -1,4 +1,4 @@
-/** Browser half: one owned style tag, applied, updated and removed. */
+/** Browser half: one owned style tag, two independent heights, persistence. */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import {
@@ -6,8 +6,9 @@ import {
   STYLE_SELECTOR,
   apply,
   applyRowHeight,
-  cachedRowHeight,
-  heightOf,
+  cacheHeights,
+  cachedHeights,
+  heightsOf,
   removeRowHeight,
 } from '../src/client/index.ts'
 import { buildRowCss } from '../src/core/rows.ts'
@@ -26,10 +27,6 @@ function createForm(initial: Record<string, unknown>) {
       snapshot = { value: { ...snapshot.value, [field]: value } }
       for (const listener of listeners) listener()
       return true
-    },
-    push: (patch: Record<string, unknown>) => {
-      snapshot = { value: { ...snapshot.value, ...patch } }
-      for (const listener of listeners) listener()
     },
   }
 }
@@ -66,53 +63,80 @@ afterEach(() => {
 })
 
 describe('style tag ownership', () => {
-  it('writes one tag and reuses it on the next value', () => {
-    applyRowHeight(24)
-    applyRowHeight(32)
+  it('writes one tag and reuses it on the next values', () => {
+    applyRowHeight(24, 24)
+    applyRowHeight(32, 20)
     const tags = document.querySelectorAll(STYLE_SELECTOR)
     expect(tags.length).toBe(1)
-    expect(tags[0]?.textContent).toBe(buildRowCss(32))
+    expect(tags[0]?.textContent).toBe(buildRowCss(32, 20))
   })
 
   it('removes the tag on dispose', () => {
-    applyRowHeight(24)
+    applyRowHeight(24, 24)
     removeRowHeight()
     expect(document.querySelectorAll(STYLE_SELECTOR).length).toBe(0)
   })
 })
 
-describe('heightOf', () => {
-  it('reads the stored field and falls back when absent', () => {
-    expect(heightOf({ value: { rowHeight: 32 } })).toBe(32)
-    expect(heightOf({ value: {} })).toBe(28)
-    expect(heightOf({})).toBe(28)
+describe('heightsOf', () => {
+  it('reads both fields and falls back per field', () => {
+    expect(heightsOf({ value: { panelHeight: 32, workspaceHeight: 24 } })).toEqual({ panel: 32, workspace: 24 })
+    expect(heightsOf({ value: { panelHeight: 40 } })).toEqual({ panel: 40, workspace: 28 })
+    expect(heightsOf({})).toEqual({ panel: 28, workspace: 28 })
+  })
+})
+
+describe('height cache', () => {
+  it('round-trips and survives unusable entries', () => {
+    cacheHeights({ panel: 36, workspace: 22 })
+    expect(cachedHeights()).toEqual({ panel: 36, workspace: 22 })
+    localStorage.setItem(CACHE_KEY, 'not json')
+    expect(cachedHeights()).toEqual({ panel: 28, workspace: 28 })
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ panel: 999 }))
+    expect(cachedHeights()).toEqual({ panel: 48, workspace: 28 })
   })
 })
 
 describe('apply', () => {
-  it('applies the persisted height and follows later writes', async () => {
-    const form = createForm({ rowHeight: 32 })
+  it('applies both persisted heights and follows later writes', async () => {
+    const form = createForm({ panelHeight: 32, workspaceHeight: 22 })
     const { ctx } = createContext(form)
     apply(ctx as never)
-    expect(document.querySelector(STYLE_SELECTOR)?.textContent).toBe(buildRowCss(32))
-    await form.set('rowHeight', 20)
-    expect(document.querySelector(STYLE_SELECTOR)?.textContent).toBe(buildRowCss(20))
+    expect(document.querySelector(STYLE_SELECTOR)?.textContent).toBe(buildRowCss(32, 22))
+    await form.set('workspaceHeight', 40)
+    expect(document.querySelector(STYLE_SELECTOR)?.textContent).toBe(buildRowCss(32, 40))
   })
 
-  it('registers one General-settings row that writes the same field', async () => {
-    const form = createForm({ rowHeight: 28 })
+  it('registers one General-settings row exposing both writers', async () => {
+    const form = createForm({ panelHeight: 28, workspaceHeight: 28 })
     const { ctx, registrations } = createContext(form)
     apply(ctx as never)
     expect(registrations.length).toBe(1)
     expect(registrations[0]?.options).toMatchObject({ name: 'settings.general.item', id: 'compact-sidebar-size' })
-    const setRowHeight = registrations[0]?.injected.setRowHeight as (px: number) => void
-    setRowHeight(40)
+    const injected = registrations[0]?.injected as {
+      setPanelHeight: (px: number) => void
+      setWorkspaceHeight: (px: number) => void
+    }
+    injected.setPanelHeight(40)
+    injected.setWorkspaceHeight(24)
     await Promise.resolve()
-    expect(form.getSnapshot().value.rowHeight).toBe(40)
+    await Promise.resolve()
+    expect(form.getSnapshot().value).toMatchObject({ panelHeight: 40, workspaceHeight: 24 })
+  })
+
+  it('keeps the two settings independent', async () => {
+    const form = createForm({ panelHeight: 28, workspaceHeight: 28 })
+    const { ctx, registrations } = createContext(form)
+    apply(ctx as never)
+    const injected = registrations[0]?.injected as { setPanelHeight: (px: number) => void }
+    injected.setPanelHeight(44)
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(form.getSnapshot().value).toMatchObject({ panelHeight: 44, workspaceHeight: 28 })
   })
 
   it('drops the tag when the effect is disposed', () => {
-    const form = createForm({ rowHeight: 28 })
+    const form = createForm({ panelHeight: 28, workspaceHeight: 28 })
     const { ctx, effects } = createContext(form)
     apply(ctx as never)
     expect(document.querySelectorAll(STYLE_SELECTOR).length).toBe(1)
@@ -120,11 +144,10 @@ describe('apply', () => {
     expect(document.querySelectorAll(STYLE_SELECTOR).length).toBe(0)
   })
 
-  it('caches the applied height for a flash-free boot', () => {
-    const form = createForm({ rowHeight: 24 })
+  it('caches the applied heights for a flash-free boot', () => {
+    const form = createForm({ panelHeight: 24, workspaceHeight: 30 })
     const { ctx } = createContext(form)
     apply(ctx as never)
-    expect(localStorage.getItem(CACHE_KEY)).toBe('24')
-    expect(cachedRowHeight()).toBe(24)
+    expect(JSON.parse(localStorage.getItem(CACHE_KEY) ?? '{}')).toEqual({ panel: 24, workspace: 30 })
   })
 })
